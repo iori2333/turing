@@ -1,8 +1,21 @@
-//
-// Created by iori on 22-11-30.
-//
+#pragma once
+#include <Machine.h>
 
-#ifndef FLA22_SIMULATOR_H
-#define FLA22_SIMULATOR_H
+namespace turing::simulator {
 
-#endif //FLA22_SIMULATOR_H
+using machine::TuringState;
+using utils::Error;
+using utils::Result;
+using utils::TuringError;
+
+struct Simulator {
+
+private:
+  TuringState turingState;
+  Simulator(TuringState turingState) : turingState(std::move(turingState)) {}
+
+public:
+  static auto of(TuringState state) { return Simulator(std::move(state)); }
+  auto run() -> Result<> { return TuringError::Ok; }
+};
+} // namespace turing::simulator

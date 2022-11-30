@@ -1,40 +1,49 @@
 #pragma once
-#include <errors.h>
 #include <fstream>
+#include <regex>
 #include <string_view>
 #include <unordered_set>
 
-#include <logger.h>
+#include <Errors.h>
+#include <Logger.h>
+#include <Machine.h>
+#include <Simulator.h>
 
 namespace turing::parser {
 
 namespace constants {
-using namespace std::string_view_literals;
 
-constexpr auto StatesFlag = "#Q"sv;
-constexpr auto SymbolsFlags = "#S"sv;
-constexpr auto TapeSymbolsFlags = "#G"sv;
+using namespace std::literals::string_view_literals;
+
+constexpr auto StatesFlag = "#Q";
+constexpr auto SymbolsFlags = "#S";
+constexpr auto TapeSymbolsFlags = "#G";
 constexpr auto InitialStateFlags = "#q0";
-constexpr auto BlankSymbolFlag = "#B"sv;
-constexpr auto FinalStatesFlag = "#F"sv;
-constexpr auto TapeCountFlag = "#N"sv;
+constexpr auto BlankSymbolFlag = "#B";
+constexpr auto FinalStatesFlag = "#F";
+constexpr auto TapeCountFlag = "#N";
 constexpr auto CommentFlag = ';';
+
+constexpr auto InvalidSymbols = " ,;{}*_"sv;
 
 } // namespace constants
 
-using turing::utils::Error;
-using turing::utils::Logger;
-using turing::utils::TuringError;
-
-using SymbolSet = std::unordered_set<char>;
+using machine::TuringState;
+using simulator::Simulator;
+using utils::Error;
+using utils::Logger;
+using utils::Result;
+using utils::TuringError;
 
 struct Parser {
 private:
   std::ifstream fs;
+  TuringState turingState;
 
   struct Config {
     const Logger &logger;
     std::string_view filename;
+    std::string_view input;
   } config;
 
   static auto trimComments(std::string_view line) -> std::string_view {
@@ -42,17 +51,7 @@ private:
     if (commentPos != std::string_view::npos) {
       return line.substr(0, commentPos);
     }
-    return line;
-  }
-
-  static auto trim(std::string_view line) -> std::string_view {
-    auto line2 = trimComments(line);
-    auto start = line2.find_first_not_of(' ');
-    auto end = line2.find_last_not_of(' ');
-    if (start == std::string_view::npos || end == std::string_view::npos) {
-      return "";
-    }
-    return line2.substr(start, end - start + 1);
+    return utils::trim(line);
   }
 
 public:
@@ -79,8 +78,10 @@ public:
         logger.setVerbose(true);
       } else if (arg == "-h" || arg == "--help") {
         doHelp = true;
-      } else {
+      } else if (config.filename.empty()) {
         config.filename = arg;
+      } else if (config.input.empty()) {
+        config.input = arg;
       }
     }
 
@@ -101,48 +102,101 @@ public:
     return "usage: turing [-v|--verbose] [-h|--help] <tm> <input>";
   }
 
-  auto parse() -> int {
+  auto parse() -> Result<Simulator> {
     while (!fs.eof()) {
       auto rLine = std::string{};
-      fs >> rLine;
-      auto line = trim(rLine);
+      std::getline(fs, rLine, '\n');
+      auto line = trimComments(rLine);
       if (line.empty()) {
         continue;
       }
+
+      Error e;
       if (line.starts_with(constants::StatesFlag)) {
-        parseStates(line);
+        e = parseStates(line);
       } else if (line.starts_with(constants::SymbolsFlags)) {
-        parseSymbols(line);
+        e = parseSymbols(line);
       } else if (line.starts_with(constants::TapeSymbolsFlags)) {
-        parseTapeSymbols(line);
+        e = parseTapeSymbols(line);
       } else if (line.starts_with(constants::InitialStateFlags)) {
-        parseInitialState(line);
+        e = parseInitialState(line);
       } else if (line.starts_with(constants::BlankSymbolFlag)) {
-        parseBlankSymbol(line);
+        e = parseBlankSymbol(line);
       } else if (line.starts_with(constants::FinalStatesFlag)) {
-        parseFinalStates(line);
+        e = parseFinalStates(line);
       } else if (line.starts_with(constants::TapeCountFlag)) {
-        parseTapeCount(line);
+        e = parseTapeCount(line);
       } else {
-        parseTransitions(line);
+        e = parseTransitions(line);
+      }
+      if (e != TuringError::Ok) {
+        return e;
       }
     }
+    return Simulator::of(std::move(turingState));
   }
 
-  auto parseStates(std::string_view line) -> Error { return TuringError::Ok; }
+  auto parseStates(std::string_view line) -> Error {
+    static auto statesReg = std::regex{R"(#Q\s*=\s*\{([a-zA-Z0-9_, ]+)\})"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, statesReg)) {
+      return TuringError::ParserInvalidStates;
+    }
+    auto stateString = utils::replace(match[1].str(), " ", "");
+    auto lineStates = utils::split(stateString, ',');
+    for (auto state : lineStates) {
+      if (state.empty()) {
+        return TuringError::ParserInvalidStates;
+      }
+      turingState.states.emplace(state);
+    }
+    return TuringError::Ok;
+  }
 
-  auto parseSymbols(std::string_view line) -> Error {}
+  auto parseSymbols(std::string_view line) -> Error {
+    static auto symbolsReg = std::regex{R"(#S\s*=\s*\{(.*)\})"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, symbolsReg)) {
+      return TuringError::ParserInvalidSymbols;
+    }
+    auto symbolString = utils::replace(match[1].str(), " ", "");
+    auto lineSymbols = utils::split(symbolString, ',');
+    for (auto symbol : lineSymbols) {
+      if (symbol.size() != 1) {
+        return TuringError::ParserInvalidSymbols;
+      }
+      auto sym = symbol[0];
+      if (sym < 32 || sym > 126 ||
+          constants::InvalidSymbols.find(sym) != std::string_view::npos) {
+        return TuringError::ParserInvalidSymbols;
+      }
+      turingState.symbols.emplace(symbol[0]);
+    }
+    return TuringError::Ok;
+  }
 
-  auto parseTapeSymbols(std::string_view line) -> Error {}
+  auto parseTapeSymbols(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 
-  auto parseInitialState(std::string_view line) -> Error {}
+  auto parseInitialState(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 
-  auto parseBlankSymbol(std::string_view line) -> Error {}
+  auto parseBlankSymbol(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 
-  auto parseFinalStates(std::string_view line) -> Error {}
+  auto parseFinalStates(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 
-  auto parseTapeCount(std::string_view line) -> Error {}
+  auto parseTapeCount(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 
-  auto parseTransitions(std::string_view line) -> Error {}
+  auto parseTransitions(std::string_view line) -> Error {
+    return TuringError::Ok;
+  }
 };
 } // namespace turing::parser

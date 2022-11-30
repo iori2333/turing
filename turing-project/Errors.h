@@ -1,13 +1,14 @@
 #pragma once
-
 #include <string>
 #include <system_error>
 #include <type_traits>
+#include <variant>
 
 namespace turing::utils {
-enum class TuringError : int {
+enum struct TuringError : int {
   Ok = 0,
-  ParserError,
+  ParserInvalidStates,
+  ParserInvalidSymbols,
   UnknownError,
 };
 
@@ -23,6 +24,8 @@ struct ErrorCategory final : public std::error_category {
     switch (static_cast<TuringError>(ev)) {
     case TuringError::Ok:
       return "Ok";
+    case TuringError::ParserInvalidStates:
+      return "Invalid states definition";
     default:
       return "Unknown error";
     }
@@ -43,53 +46,60 @@ template <> struct is_error_code_enum<TuringError> : true_type {};
 } // namespace std
 
 namespace turing::utils {
+template <typename R = void> struct Result;
+
 template <typename R> struct Result {
 public:
   using ValueType = R;
   using ErrorType = Error;
 
-  Result(ValueType value) : value(std::move(value)) {}
-  Result(ErrorType error) : error(std::move(error)) {}
-  template <typename E>
-    requires std::is_error_code_enum_v<E>
-  Result(E error) : error(std::make_error_code(error)) {}
+  Result(ValueType value) : inner(std::move(value)) {}
+  Result(ErrorType error) : inner(std::move(error)) {}
+  Result(TuringError error) : inner(error) {}
 
-  auto isOk() const -> bool { return bool(error); }
+  auto isOk() const -> bool { return std::holds_alternative<ValueType>(inner); }
   auto isErr() const -> bool { return !isOk(); }
 
-  auto unwrap() const -> ValueType { return value; }
-
-  template <std::size_t n> constexpr auto get() const {
-    if constexpr (n == 0) {
-      return value;
-    } else if constexpr (n == 1) {
-      return error;
-    } else {
-      static_assert(n < 2, "Index out of bounds");
+  auto unwrap() const -> ValueType & { return std::get<ValueType>(inner); }
+  auto onError(std::function<void(const Error &e)> fn) const -> ValueType & {
+    if (isErr()) {
+      fn(error());
+      throw std::runtime_error("unreachable");
     }
+    return unwrap();
   }
+  auto error() const -> ErrorType { return std::get<ErrorType>(inner); }
+
+  auto operator*() const -> ValueType & { return unwrap(); }
+
+  operator bool() const { return isOk(); }
 
 private:
-  ValueType value;
-  ErrorType error;
+  mutable std::variant<ValueType, ErrorType> inner;
+};
+
+template <> struct Result<void> {
+public:
+  using ValueType = void;
+  using ErrorType = Error;
+
+  Result(ErrorType error) : inner(std::move(error)) {}
+  Result(TuringError error) : inner(error) {}
+  Result() : Result(TuringError::Ok) {}
+
+  auto isOk() const -> bool { return inner == TuringError::Ok; }
+  auto isErr() const -> bool { return !isOk(); }
+
+  auto onError(std::function<void(const Error &e)> fn) const -> ValueType {
+    if (isErr()) {
+      fn(error());
+    }
+  }
+  auto error() const -> ErrorType { return inner; }
+
+  operator bool() const { return isOk(); }
+
+private:
+  Error inner;
 };
 } // namespace turing::utils
-
-namespace std {
-using turing::utils::Result;
-
-template <typename R>
-struct tuple_size<Result<R>> : integral_constant<std::size_t, 2> {};
-
-template <typename R> struct tuple_element<0, Result<R>> {
-  using type = typename Result<R>::ValueType;
-};
-
-template <typename R> struct tuple_element<1, Result<R>> {
-  using type = typename Result<R>::ErrorType;
-};
-
-template <std::size_t n, typename R> auto get(const Result<R> &result) {
-  return result.template get<n>();
-}
-} // namespace std

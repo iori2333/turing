@@ -1,8 +1,7 @@
-add_subdirectory(parser)
-add_subdirectory(simulator)
+file(GLOB SOURCES *.cpp)
+file(GLOB HEADERS *.h *.hpp)
 
-add_executable(turing main.cpp)
-target_link_libraries(turing parser simulator)
-target_include_directories(turing PUBLIC parser simulator)
+add_executable(turing ${SOURCES} ${HEADERS})
+target_include_directories(turing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
