@@ -15,6 +15,10 @@ namespace constants {
 
 using namespace std::literals::string_view_literals;
 
+constexpr auto Usage =
+    "usage: turing [-v|--isVerbose] [-h|--help] <tm> <input>";
+constexpr auto EmptyString = ""sv;
+
 constexpr auto StatesFlag = "#Q";
 constexpr auto SymbolsFlags = "#S";
 constexpr auto TapeSymbolsFlags = "#G";
@@ -25,9 +29,11 @@ constexpr auto TapeCountFlag = "#N";
 constexpr auto CommentFlag = ';';
 
 constexpr auto InvalidSymbols = " ,;{}*_"sv;
+constexpr auto InvalidTapeSymbols = " ,;{}*"sv;
 
 } // namespace constants
 
+using machine::Transition;
 using machine::TuringState;
 using simulator::Simulator;
 using utils::Error;
@@ -40,11 +46,8 @@ private:
   std::ifstream fs;
   TuringState turingState;
 
-  struct Config {
-    const Logger &logger;
-    std::string_view filename;
-    std::string_view input;
-  } config;
+  const Logger &logger;
+  std::string_view input;
 
   static auto trimComments(std::string_view line) -> std::string_view {
     auto commentPos = line.find(constants::CommentFlag);
@@ -55,51 +58,50 @@ private:
   }
 
 public:
-  explicit Parser(Config config)
-      : config(std::move(config)), fs(config.filename.data()) {
+  explicit Parser(std::string_view filename, std::string_view input)
+      : input(input), fs(filename.data()), logger(Logger::instance()) {
     if (!fs.is_open()) {
-      config.logger.errorf("failed to open file: {}", config.filename);
+      logger.error("failed to open file: {}", filename);
       std::exit(1);
     }
   }
 
   static Parser fromArgs(int argc, char **argv) {
-    if (argc < 2 || argc > 5) {
-      Logger::instance().info(usage());
+    auto &logger = Logger::instance();
+    if (argc < 2) {
+      logger.info(constants::Usage);
       std::exit(1);
     }
 
     auto args = std::vector<std::string_view>(argv + 1, argv + argc);
-    auto logger = Logger::instance();
-    auto config = Config{.logger = logger, .filename = ""};
+    auto filename = constants::EmptyString;
+    auto input = constants::EmptyString;
     auto doHelp = false;
-    for (auto &arg : args) {
-      if (arg == "-v" || arg == "--verbose") {
+    for (auto arg : args) {
+      if (arg == "-v" || arg == "--isVerbose") {
         logger.setVerbose(true);
       } else if (arg == "-h" || arg == "--help") {
         doHelp = true;
-      } else if (config.filename.empty()) {
-        config.filename = arg;
-      } else if (config.input.empty()) {
-        config.input = arg;
+      } else if (arg.starts_with('-')) {
+        continue;
+      } else if (filename.empty()) {
+        filename = arg;
+      } else if (input.empty()) {
+        input = arg;
       }
     }
 
     if (doHelp) {
-      Logger::instance().info(usage());
+      logger.info(constants::Usage);
       std::exit(0);
     }
 
-    if (!config.filename.ends_with(".tm")) {
-      Logger::instance().error("No input file specified");
+    if (!filename.ends_with(".tm")) {
+      logger.error("No input file specified");
       std::exit(1);
     }
 
-    return Parser(std::move(config));
-  }
-
-  static auto usage() -> const char * {
-    return "usage: turing [-v|--verbose] [-h|--help] <tm> <input>";
+    return Parser(filename, input);
   }
 
   auto parse() -> Result<Simulator> {
@@ -133,7 +135,8 @@ public:
         return e;
       }
     }
-    return Simulator::of(std::move(turingState));
+
+    return Simulator::of(std::move(turingState), input);
   }
 
   auto parseStates(std::string_view line) -> Error {
@@ -170,32 +173,136 @@ public:
           constants::InvalidSymbols.find(sym) != std::string_view::npos) {
         return TuringError::ParserInvalidSymbols;
       }
-      turingState.symbols.emplace(symbol[0]);
+      turingState.symbols.emplace(sym);
     }
     return TuringError::Ok;
   }
 
   auto parseTapeSymbols(std::string_view line) -> Error {
+    static auto tapeSymbolsReg = std::regex{R"(#G\s*=\s*\{(.*)\})"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, tapeSymbolsReg)) {
+      return TuringError::ParserInvalidTapeSymbols;
+    }
+    auto tapeSymbolString = utils::replace(match[1].str(), " ", "");
+    auto lineTapeSymbols = utils::split(tapeSymbolString, ',');
+    for (auto tapeSymbol : lineTapeSymbols) {
+      if (tapeSymbol.size() != 1) {
+        return TuringError::ParserInvalidTapeSymbols;
+      }
+      auto tapeSym = tapeSymbol[0];
+      if (tapeSym < 32 || tapeSym > 126 ||
+          constants::InvalidTapeSymbols.find(tapeSym) !=
+              std::string_view::npos) {
+        return TuringError::ParserInvalidTapeSymbols;
+      }
+      turingState.tapeSymbols.emplace(tapeSym);
+    }
     return TuringError::Ok;
   }
 
   auto parseInitialState(std::string_view line) -> Error {
+    static auto initialStateReg = std::regex{R"(#q0\s*=\s*([a-zA-Z0-9_]+))"};
+    if (!turingState.initialState.empty()) {
+      return TuringError::ParserDuplicateDefinition;
+    }
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, initialStateReg)) {
+      return TuringError::ParserInvalidInitialState;
+    }
+    turingState.initialState = match[1].str();
     return TuringError::Ok;
   }
 
   auto parseBlankSymbol(std::string_view line) -> Error {
+    static auto blankSymbolReg = std::regex{R"(#B\s*=\s*([a-zA-Z0-9_]+))"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, blankSymbolReg)) {
+      return TuringError::ParserInvalidBlankSymbol;
+    }
+    auto blankSymbol = match[1].str();
+    if (blankSymbol.size() != 1) {
+      return TuringError::ParserInvalidBlankSymbol;
+    }
+    auto sym = blankSymbol[0];
+    if (sym != '_') {
+      return TuringError::ParserInvalidBlankSymbol;
+    }
+    turingState.blankSymbol = sym;
     return TuringError::Ok;
   }
 
   auto parseFinalStates(std::string_view line) -> Error {
+    static auto finalStatesReg =
+        std::regex{R"(#F\s*=\s*\{([a-zA-Z0-9_, ]+)\})"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, finalStatesReg)) {
+      return TuringError::ParserInvalidFinalStates;
+    }
+    auto finalStateString = utils::replace(match[1].str(), " ", "");
+    auto lineFinalStates = utils::split(finalStateString, ',');
+    for (auto finalState : lineFinalStates) {
+      if (finalState.empty()) {
+        return TuringError::ParserInvalidFinalStates;
+      }
+      turingState.finalStates.emplace(finalState);
+    }
     return TuringError::Ok;
   }
 
   auto parseTapeCount(std::string_view line) -> Error {
+    static auto tapeCountReg = std::regex{R"(#N\s*=\s*(\d+))"};
+    auto match = std::cmatch{};
+    if (!std::regex_match(line.data(), match, tapeCountReg)) {
+      return TuringError::ParserInvalidTapeCount;
+    }
+    auto tapeCount = std::stoi(match[1].str());
+    if (tapeCount < 1) {
+      return TuringError::ParserInvalidTapeCount;
+    }
+    turingState.tapeCount = tapeCount;
     return TuringError::Ok;
   }
 
   auto parseTransitions(std::string_view line) -> Error {
+    auto symbols = utils::split(line);
+    utils::omitEmpty(symbols);
+    if (symbols.size() != 5) {
+      return TuringError::ParserInvalidTransition;
+    }
+
+    auto state = symbols[0];
+    auto symbol = symbols[1];
+    auto nextSymbol = symbols[2];
+    auto direction = symbols[3];
+
+    if (symbol.size() != turingState.tapeCount ||
+        nextSymbol.size() != turingState.tapeCount ||
+        direction.size() != turingState.tapeCount) {
+      return TuringError::ParserInvalidTransition;
+    }
+
+    auto moves = std::vector<machine::Move>();
+    moves.reserve(turingState.tapeCount);
+    for (auto ch : direction) {
+      switch (ch) {
+      case 'l':
+        moves.emplace_back(machine::Move::Left);
+        break;
+      case 'r':
+        moves.emplace_back(machine::Move::Right);
+        break;
+      case '*':
+        moves.emplace_back(machine::Move::Stay);
+        break;
+      default:
+        return TuringError::ParserInvalidTransition;
+      }
+    }
+    auto nextState = symbols[4];
+
+    auto transition = Transition(state, symbol, nextState, nextSymbol, moves);
+    turingState.transitions.insert(std::move(transition));
     return TuringError::Ok;
   }
 };

@@ -9,7 +9,15 @@ enum struct TuringError : int {
   Ok = 0,
   ParserInvalidStates,
   ParserInvalidSymbols,
-  UnknownError,
+  ParserInvalidTapeSymbols,
+  ParserInvalidInitialState,
+  ParserDuplicateDefinition,
+  SimulatorIllegalInput,
+  ParserInvalidBlankSymbol,
+  ParserInvalidFinalStates,
+  ParserInvalidTapeCount,
+  ParserInvalidTransition,
+  UnknownError
 };
 
 using Error = std::error_code;
@@ -26,6 +34,8 @@ struct ErrorCategory final : public std::error_category {
       return "Ok";
     case TuringError::ParserInvalidStates:
       return "Invalid states definition";
+    case TuringError::SimulatorIllegalInput:
+      return "Illegal input";
     default:
       return "Unknown error";
     }

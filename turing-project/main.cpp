@@ -5,14 +5,19 @@ using turing::parser::Parser;
 using turing::utils::Error;
 using turing::utils::Logger;
 
-[[noreturn]] inline auto errorHandler(const Error &error) {
-  Logger::instance().info(error.message());
-  std::exit(1);
-}
-
 auto main(int argc, char **argv) -> int {
   auto parser = Parser::fromArgs(argc, argv);
-  auto simulator = parser.parse().onError(errorHandler);
-  simulator.run().onError(errorHandler);
+  const auto &logger = Logger::instance();
+
+  auto simulator = parser.parse().onError([&logger](const Error &error) {
+    logger.info(error.message());
+    std::exit(error.value());
+  });
+
+  simulator.run().onError([&logger](const Error &error) {
+    logger.noVerbose(Logger::Level::Error, error.message());
+    std::exit(error.value());
+  });
+
   return 0;
 }

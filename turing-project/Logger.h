@@ -9,40 +9,46 @@
 namespace turing::utils {
 struct Logger {
 private:
-  bool verbose;
+  bool isVerbose;
+  std::ostream &es;
+  std::ostream &os;
 
-  Logger() : verbose(false) {
-    std::cout.sync_with_stdio(false);
-    std::cerr.sync_with_stdio(false);
-  }
+  Logger() : isVerbose(false), es(std::cerr), os(std::cout) {}
 
 public:
+  enum struct Level { Info, Error };
+
   static auto instance() -> Logger & {
     static Logger logger;
     return logger;
   }
 
-  auto setVerbose(bool doVerbose) -> void { verbose = doVerbose; }
+  auto setVerbose(bool verbose) -> void { isVerbose = verbose; }
 
-  auto info(std::string_view message) const -> void {
-    std::cout << message << std::endl;
+  auto log(Level level, std::string_view message) const -> void {
+    auto &stream = level == Level::Info ? os : es;
+    stream << message << std::endl;
   }
 
-  auto error(std::string_view message) const -> void {
-    if (verbose) {
-      std::cerr << message << std::endl;
+  auto info(std::string_view fmt, auto &&...args) const -> void {
+    log(Level::Info, format(fmt, std::forward<decltype(args)>(args)...));
+  }
+
+  auto error(std::string_view fmt, auto &&...args) const -> void {
+    log(Level::Error, format(fmt, std::forward<decltype(args)>(args)...));
+  }
+
+  auto verbose(Level level, std::string_view fmt, auto &&...args) const
+      -> void {
+    if (isVerbose) {
+      log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }
   }
 
-  template <typename... Args>
-  auto infof(std::string_view fmt, Args &&...args) const -> void {
-    info(format(fmt, std::forward<Args>(args)...));
-  }
-
-  template <typename... Args>
-  auto errorf(std::string_view fmt, Args &&...args) const -> void {
-    if (verbose) {
-      std::cerr << format(fmt, std::forward<Args>(args)...) << std::endl;
+  auto noVerbose(Level level, std::string_view fmt, auto &&...args) const
+      -> void {
+    if (!isVerbose) {
+      log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }
   }
 };
