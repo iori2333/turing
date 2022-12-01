@@ -14,10 +14,7 @@ auto main(int argc, char **argv) -> int {
     std::exit(error.value());
   });
 
-  simulator.run().onError([&logger](const Error &error) {
-    // logger.error(error.message()); // not required
-    std::exit(error.value());
-  });
+  simulator.run();
 
   return 0;
 }
