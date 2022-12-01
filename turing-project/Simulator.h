@@ -30,6 +30,10 @@ constexpr auto RunInformationFormat =
     "{}\n"
     "---------------------------------------------";
 
+constexpr auto EndResultFormat =
+    "Result: {}\n"
+    "==================== END ====================";
+
 } // namespace constants
 
 struct Simulator {
@@ -77,15 +81,18 @@ public:
     while (status == Status::Running) {
       status = stepNext();
     }
-    logger.info("Result: {}", tapes.result());
-    logger.verbose(Logger::Level::Info,
-                   "==================== END ====================");
+    auto result = tapes.result();
+    logger.noVerbose(Logger::Level::Info, result);
+    logger.verbose(Logger::Level::Info, constants::EndResultFormat, result);
     return status == Status::Accepted ? TuringError::Ok
                                       : TuringError::SimulatorNotAccepted;
   }
 
 private:
   auto stepNext() -> Status {
+    if (turingState.finalStates.contains(currentState)) {
+      return Status::Accepted;
+    }
     auto currentSymbols = tapes.read();
     auto inState = std::make_pair(currentState, currentSymbols);
     if (!turingState.transitions.contains(inState)) {
@@ -95,11 +102,8 @@ private:
     tapes.write(output, moves);
     currentState = nextState;
     step++;
-    if (turingState.finalStates.contains(currentState)) {
-      return Status::Accepted;
-    }
-    logger.info(constants::RunInformationFormat, //
-                step, currentState, tapes.toString());
+    logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
+                   step, currentState, tapes.toString());
     return Status::Running;
   }
 };

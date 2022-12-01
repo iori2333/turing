@@ -186,27 +186,31 @@ inline auto Transition::convertTransitions(const TuringState &state) const
     for (auto i = 0; i < front.input.size(); i++) {
       auto s1 = front.input[i];
       auto s2 = front.output[i];
-      if (s1 == '*' && s2 == '*') {
+      if (s1 == '*' || s2 == '*') {
         flag = false;
         auto nt = front;
-        for (auto s : state.symbols) {
-          nt.input[i] = s;
-          nt.output[i] = s;
-          queue.push(nt);
-        }
-      } else if (s1 == '*') {
-        flag = false;
-        auto nt = front;
-        for (auto s : state.symbols) {
-          nt.input[i] = s;
-          queue.push(nt);
-        }
-      } else if (s2 == '*') {
-        flag = false;
-        auto nt = front;
-        for (auto s : state.symbols) {
-          nt.output[i] = s;
-          queue.push(nt);
+        if (s1 == '*' && s2 == '*') {
+          for (auto s : state.symbols) {
+            if (s != state.blankSymbol) {
+              nt.input[i] = s;
+              nt.output[i] = s;
+              queue.push(nt);
+            }
+          }
+        } else if (s1 == '*') {
+          for (auto s : state.symbols) {
+            if (s != state.blankSymbol) {
+              nt.input[i] = s;
+              queue.push(nt);
+            }
+          }
+        } else {
+          for (auto s : state.symbols) {
+            if (s != state.blankSymbol) {
+              nt.output[i] = s;
+              queue.push(nt);
+            }
+          }
         }
       }
     }

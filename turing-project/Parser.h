@@ -143,7 +143,7 @@ public:
   auto parseStates(std::string_view line) -> Error {
     static auto statesReg = std::regex{R"(#Q\s*=\s*\{([a-zA-Z0-9_, ]+)\})"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, statesReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, statesReg)) {
       return TuringError::ParserInvalidStates;
     }
     auto stateString = utils::replace(match[1].str(), " ", "");
@@ -160,10 +160,13 @@ public:
   auto parseSymbols(std::string_view line) -> Error {
     static auto symbolsReg = std::regex{R"(#S\s*=\s*\{(.*)\})"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, symbolsReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, symbolsReg)) {
       return TuringError::ParserInvalidSymbols;
     }
     auto symbolString = utils::replace(match[1].str(), " ", "");
+    if (symbolString.empty()) {
+      return TuringError::Ok;
+    }
     auto lineSymbols = utils::split(symbolString, ',');
     for (auto symbol : lineSymbols) {
       if (symbol.size() != 1) {
@@ -182,7 +185,7 @@ public:
   auto parseTapeSymbols(std::string_view line) -> Error {
     static auto tapeSymbolsReg = std::regex{R"(#G\s*=\s*\{(.*)\})"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, tapeSymbolsReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, tapeSymbolsReg)) {
       return TuringError::ParserInvalidTapeSymbols;
     }
     auto tapeSymbolString = utils::replace(match[1].str(), " ", "");
@@ -208,7 +211,7 @@ public:
       return TuringError::ParserDuplicateDefinition;
     }
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, initialStateReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, initialStateReg)) {
       return TuringError::ParserInvalidInitialState;
     }
     turingState.initialState = match[1].str();
@@ -218,7 +221,7 @@ public:
   auto parseBlankSymbol(std::string_view line) -> Error {
     static auto blankSymbolReg = std::regex{R"(#B\s*=\s*([a-zA-Z0-9_]+))"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, blankSymbolReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, blankSymbolReg)) {
       return TuringError::ParserInvalidBlankSymbol;
     }
     auto blankSymbol = match[1].str();
@@ -235,12 +238,15 @@ public:
 
   auto parseFinalStates(std::string_view line) -> Error {
     static auto finalStatesReg =
-        std::regex{R"(#F\s*=\s*\{([a-zA-Z0-9_, ]+)\})"};
+        std::regex{R"(#F\s*=\s*\{([a-zA-Z0-9_, ]*)\})"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, finalStatesReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, finalStatesReg)) {
       return TuringError::ParserInvalidFinalStates;
     }
     auto finalStateString = utils::replace(match[1].str(), " ", "");
+    if (finalStateString.empty()) {
+      return TuringError::Ok;
+    }
     auto lineFinalStates = utils::split(finalStateString, ',');
     for (auto finalState : lineFinalStates) {
       if (finalState.empty()) {
@@ -254,7 +260,7 @@ public:
   auto parseTapeCount(std::string_view line) -> Error {
     static auto tapeCountReg = std::regex{R"(#N\s*=\s*(\d+))"};
     auto match = std::cmatch{};
-    if (!std::regex_match(line.data(), match, tapeCountReg)) {
+    if (!std::regex_match(line.begin(), line.end(), match, tapeCountReg)) {
       return TuringError::ParserInvalidTapeCount;
     }
     auto tapeCount = std::stoi(match[1].str());
