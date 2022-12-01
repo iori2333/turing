@@ -7,6 +7,12 @@ namespace turing::utils {
 
 using concepts::StringConvertible;
 
+#ifdef __turing_legacy__
+#define __turing_string_convertible__
+#else
+#define __turing_string_convertible__ StringConvertible
+#endif
+
 struct Logger {
 private:
   bool isVerbose;
@@ -30,25 +36,25 @@ public:
     stream << message << std::endl;
   }
 
-  auto info(std::string_view fmt, StringConvertible auto &&...args) const
-      -> void {
+  auto info(std::string_view fmt,
+            __turing_string_convertible__ auto &&...args) const -> void {
     log(Level::Info, format(fmt, std::forward<decltype(args)>(args)...));
   }
 
-  auto error(std::string_view fmt, StringConvertible auto &&...args) const
-      -> void {
+  auto error(std::string_view fmt,
+             __turing_string_convertible__ auto &&...args) const -> void {
     log(Level::Error, format(fmt, std::forward<decltype(args)>(args)...));
   }
 
   auto verbose(Level level, std::string_view fmt,
-               StringConvertible auto &&...args) const -> void {
+               __turing_string_convertible__ auto &&...args) const -> void {
     if (isVerbose) {
       log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }
   }
 
   auto noVerbose(Level level, std::string_view fmt,
-                 StringConvertible auto &&...args) const -> void {
+                 __turing_string_convertible__ auto &&...args) const -> void {
     if (!isVerbose) {
       log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }

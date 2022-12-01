@@ -60,8 +60,8 @@ public:
   auto convertTransitions(const TuringState &state) const
       -> std::set<Transition>;
 
-  auto operator<=>(const Transition &other) const {
-    return std::tie(curr, input, next, output, moves) <=>
+  auto operator<(const Transition &other) const {
+    return std::tie(curr, input, next, output, moves) <
            std::tie(other.curr, other.input, other.next, other.output,
                     other.moves);
   }

@@ -4,6 +4,14 @@
 #include <tuple>
 #include <vector>
 
+#ifdef __turing_legacy__
+namespace std {
+template <typename _From, typename _To>
+concept convertible_to = is_convertible_v<_From, _To> &&
+                         requires { static_cast<_To>(std::declval<_From>()); };
+}
+#endif
+
 namespace turing::utils {
 
 namespace concepts {
@@ -107,7 +115,7 @@ inline auto replace(std::string_view ins, std::string_view from,
 }
 
 template <Iterable V>
-requires StringConvertible<typename V::value_type>
+  requires StringConvertible<typename V::value_type>
 auto join(const V &vec, std::string_view delim) -> std::string {
   auto ret = std::string{};
 
@@ -121,7 +129,7 @@ auto join(const V &vec, std::string_view delim) -> std::string {
 }
 
 template <Iterable V>
-requires StringConvertible<typename V::value_type>
+  requires StringConvertible<typename V::value_type>
 inline auto join(const V &vec, char delim = ' ') -> std::string {
   return join(vec, std::string_view(&delim, 1));
 }
