@@ -47,7 +47,7 @@ struct ErrorCategory final : public std::error_category {
       return "illegal input";
     case TuringError::SimulatorNotAccepted:
       return "not accepted";
-    case TuringError::UnknownError:
+    default:
       return "unknown error";
     }
   }
