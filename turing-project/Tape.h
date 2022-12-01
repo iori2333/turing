@@ -63,7 +63,7 @@ public:
 
     if (startRealPos == -1) {
       auto line = std::vector<std::string>{
-          utils::toString(head()),
+          utils::toString(std::abs(head())),
           utils::toString(blank),
           "^",
       };
@@ -86,7 +86,7 @@ public:
       auto logicalPos = i + start();
       auto symbol = at(logicalPos);
       auto line = std::vector<std::string>{
-          utils::toString(logicalPos),
+          utils::toString(std::abs(logicalPos)),
           utils::toString(symbol),
           logicalPos == head() ? "^" : " ",
       };
