@@ -79,6 +79,8 @@ public:
   }
 
   auto run() -> Result<> {
+    logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
+                   step, currentState, tapes.toString());
     status = Status::Running;
     while (status == Status::Running) {
       status = stepNext();

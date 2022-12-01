@@ -190,7 +190,7 @@ inline auto Transition::convertTransitions(const TuringState &state) const
         flag = false;
         auto nt = front;
         if (s1 == '*' && s2 == '*') {
-          for (auto s : state.symbols) {
+          for (auto s : state.tapeSymbols) {
             if (s != state.blankSymbol) {
               nt.input[i] = s;
               nt.output[i] = s;
@@ -198,14 +198,14 @@ inline auto Transition::convertTransitions(const TuringState &state) const
             }
           }
         } else if (s1 == '*') {
-          for (auto s : state.symbols) {
+          for (auto s : state.tapeSymbols) {
             if (s != state.blankSymbol) {
               nt.input[i] = s;
               queue.push(nt);
             }
           }
         } else {
-          for (auto s : state.symbols) {
+          for (auto s : state.tapeSymbols) {
             if (s != state.blankSymbol) {
               nt.output[i] = s;
               queue.push(nt);
