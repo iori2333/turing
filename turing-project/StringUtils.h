@@ -1,7 +1,6 @@
 #pragma once
 #include <algorithm>
 #include <sstream>
-#include <string>
 #include <tuple>
 #include <vector>
 
@@ -68,8 +67,8 @@ template <StringConvertible T> inline auto toString(T &&arg) -> std::string {
   }
 }
 
-auto split(std::string_view ins, std::string_view delim = " ", int max = -1)
-    -> std::vector<std::string_view> {
+inline auto split(std::string_view ins, std::string_view delim = " ",
+                  int max = -1) -> std::vector<std::string_view> {
   auto ret = std::vector<std::string_view>{};
   for (auto pos = ins.find(delim); pos != std::string_view::npos;
        pos = ins.find(delim)) {
@@ -94,8 +93,8 @@ inline auto omitEmpty(std::vector<std::string_view> &vec)
   return vec;
 }
 
-auto replace(std::string_view ins, std::string_view from, std::string_view to)
-    -> std::string {
+inline auto replace(std::string_view ins, std::string_view from,
+                    std::string_view to) -> std::string {
   auto ret = std::string{};
   for (auto pos = ins.find(from); pos != std::string_view::npos;
        pos = ins.find(from)) {
@@ -108,7 +107,7 @@ auto replace(std::string_view ins, std::string_view from, std::string_view to)
 }
 
 template <Iterable V>
-  requires StringConvertible<typename V::value_type>
+requires StringConvertible<typename V::value_type>
 auto join(const V &vec, std::string_view delim) -> std::string {
   auto ret = std::string{};
 
@@ -122,7 +121,7 @@ auto join(const V &vec, std::string_view delim) -> std::string {
 }
 
 template <Iterable V>
-  requires StringConvertible<typename V::value_type>
+requires StringConvertible<typename V::value_type>
 inline auto join(const V &vec, char delim = ' ') -> std::string {
   return join(vec, std::string_view(&delim, 1));
 }
@@ -155,7 +154,7 @@ auto format(std::string_view fmt, Args &&...args) -> std::string {
   return is.str();
 }
 
-auto trim(std::string_view s, char symbol = ' ') -> std::string_view {
+inline auto trim(std::string_view s, char symbol = ' ') -> std::string_view {
   auto start = s.find_first_not_of(symbol);
   if (start == std::string_view::npos) {
     return s;
@@ -164,8 +163,8 @@ auto trim(std::string_view s, char symbol = ' ') -> std::string_view {
   return s.substr(start, end - start + 1);
 }
 
-auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
-                std::size_t size = std::string::npos)
+inline auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
+                       std::size_t size = std::string::npos)
     -> std::vector<std::string> & {
   if (size == std::string::npos) {
     size = std::max_element(strings.begin(), strings.end(),
@@ -181,6 +180,5 @@ auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
   }
   return strings;
 }
-
 
 } // namespace turing::utils

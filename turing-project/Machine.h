@@ -2,8 +2,8 @@
 #include <map>
 #include <queue>
 #include <set>
-#include <string>
-#include <vector>
+
+#include <StringUtils.h>
 
 namespace turing::machine {
 

@@ -1,4 +1,6 @@
 #pragma once
+#include <Errors.h>
+#include <Logger.h>
 #include <Machine.h>
 #include <Tape.h>
 
