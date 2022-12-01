@@ -78,13 +78,12 @@ public:
     auto filename = constants::EmptyString;
     auto input = constants::EmptyString;
     auto doHelp = false;
+    auto doVerbose = false;
     for (auto arg : args) {
-      if (arg == "-v" || arg == "--verbose") {
-        logger.setVerbose(true);
-      } else if (arg == "-h" || arg == "--help") {
+      if (!doVerbose && (arg == "-v" || arg == "--verbose")) {
+        doVerbose = true;
+      } else if (!doHelp && (arg == "-h" || arg == "--help")) {
         doHelp = true;
-      } else if (arg.starts_with('-')) {
-        continue;
       } else if (filename.empty()) {
         filename = arg;
       } else if (input.empty()) {
@@ -92,6 +91,7 @@ public:
       }
     }
 
+    logger.setVerbose(doVerbose);
     if (doHelp) {
       logger.info(constants::Usage);
       std::exit(0);
