@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -6,7 +7,7 @@
 
 namespace turing::utils {
 
-namespace details {
+namespace concepts {
 // clang-format off
 template <typename T>
 concept StdToStringConvertible = requires(T t) {
@@ -24,10 +25,11 @@ concept Printable = requires(std::stringstream ss, T t) {
 };
 
 template <typename T>
-concept IsString = std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, const char*>;
+concept IsString = std::is_same_v<std::decay_t<T>, std::string> ||
+    std::is_same_v<std::decay_t<T>, const char*>;
 
 template <typename T>
-concept StringConstructable = std::is_same_v<std::decay_t<T>, std::string_view>;
+concept StringConstructable = std::is_constructible_v<std::string, T>;
 
 template<typename T>
 concept IsCharacter = std::is_same_v<std::decay_t<T>, char>;
@@ -43,17 +45,21 @@ concept Iterable = requires(V v) {
   { v.end() } -> std::convertible_to<typename V::iterator>;
 };
 // clang-format on
+} // namespace concepts
+
+using concepts::Iterable;
+using concepts::StringConvertible;
 
 template <StringConvertible T> inline auto toString(T &&arg) -> std::string {
-  if constexpr (IsString<T>) {
+  if constexpr (concepts::IsString<T>) {
     return arg;
-  } else if constexpr (IsCharacter<T>) {
+  } else if constexpr (concepts::IsCharacter<T>) {
     return std::string(1, arg);
-  } else if constexpr (StringConstructable<T>) {
+  } else if constexpr (concepts::StringConstructable<T>) {
     return std::string(arg);
-  } else if constexpr (StdToStringConvertible<T>) {
+  } else if constexpr (concepts::StdToStringConvertible<T>) {
     return std::to_string(arg);
-  } else if constexpr (ToStringConvertible<T>) {
+  } else if constexpr (concepts::ToStringConvertible<T>) {
     return arg.toString();
   } else {
     std::ostringstream oss;
@@ -61,7 +67,6 @@ template <StringConvertible T> inline auto toString(T &&arg) -> std::string {
     return oss.str();
   }
 }
-} // namespace details
 
 auto split(std::string_view ins, std::string_view delim = " ", int max = -1)
     -> std::vector<std::string_view> {
@@ -78,12 +83,12 @@ auto split(std::string_view ins, std::string_view delim = " ", int max = -1)
   return ret;
 }
 
-auto split(std::string_view ins, char delim, int max = -1)
+inline auto split(std::string_view ins, char delim, int max = -1)
     -> std::vector<std::string_view> {
   return split(ins, std::string_view{&delim, 1}, max);
 }
 
-auto omitEmpty(std::vector<std::string_view> &vec)
+inline auto omitEmpty(std::vector<std::string_view> &vec)
     -> std::vector<std::string_view> {
   std::erase_if(vec, [](auto s) { return s.empty(); });
   return vec;
@@ -102,13 +107,13 @@ auto replace(std::string_view ins, std::string_view from, std::string_view to)
   return ret;
 }
 
-template <details::Iterable V>
-  requires details::StringConvertible<typename V::value_type>
+template <Iterable V>
+  requires StringConvertible<typename V::value_type>
 auto join(const V &vec, std::string_view delim) -> std::string {
   auto ret = std::string{};
 
   for (auto it = vec.begin(); it != vec.end();) {
-    ret.append(details::toString(*it));
+    ret.append(toString(*it));
     if (++it != vec.end()) {
       ret.append(delim);
     }
@@ -116,13 +121,13 @@ auto join(const V &vec, std::string_view delim) -> std::string {
   return ret;
 }
 
-template <details::Iterable V>
-  requires details::StringConvertible<typename V::value_type>
-auto join(const V &vec, char delim = ' ') -> std::string {
+template <Iterable V>
+  requires StringConvertible<typename V::value_type>
+inline auto join(const V &vec, char delim = ' ') -> std::string {
   return join(vec, std::string_view(&delim, 1));
 }
 
-template <typename... Args>
+template <StringConvertible... Args>
 auto format(std::string_view fmt, Args &&...args) -> std::string {
   if constexpr (sizeof...(args) == 0) {
     return std::string{fmt};
@@ -134,7 +139,7 @@ auto format(std::string_view fmt, Args &&...args) -> std::string {
 
   std::apply(
       [&vecArgs](auto &&...args) {
-        (vecArgs.emplace_back(details::toString(args)), ...);
+        (vecArgs.emplace_back(toString(args)), ...);
       },
       tupArgs);
 
@@ -158,5 +163,24 @@ auto trim(std::string_view s, char symbol = ' ') -> std::string_view {
   auto end = s.find_last_not_of(symbol);
   return s.substr(start, end - start + 1);
 }
+
+auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
+                std::size_t size = std::string::npos)
+    -> std::vector<std::string> & {
+  if (size == std::string::npos) {
+    size = std::max_element(strings.begin(), strings.end(),
+                            [](const auto &i1, const auto &i2) {
+                              return i1.size() < i2.size();
+                            })
+               ->size();
+  }
+  for (auto &s : strings) {
+    if (s.size() < size) {
+      s += std::string(size - s.size(), symbol);
+    }
+  }
+  return strings;
+}
+
 
 } // namespace turing::utils

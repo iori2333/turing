@@ -7,6 +7,9 @@
 #include <StringUtils.h>
 
 namespace turing::utils {
+
+using concepts::StringConvertible;
+
 struct Logger {
 private:
   bool isVerbose;
@@ -30,23 +33,25 @@ public:
     stream << message << std::endl;
   }
 
-  auto info(std::string_view fmt, auto &&...args) const -> void {
+  auto info(std::string_view fmt, StringConvertible auto &&...args) const
+      -> void {
     log(Level::Info, format(fmt, std::forward<decltype(args)>(args)...));
   }
 
-  auto error(std::string_view fmt, auto &&...args) const -> void {
+  auto error(std::string_view fmt, StringConvertible auto &&...args) const
+      -> void {
     log(Level::Error, format(fmt, std::forward<decltype(args)>(args)...));
   }
 
-  auto verbose(Level level, std::string_view fmt, auto &&...args) const
-      -> void {
+  auto verbose(Level level, std::string_view fmt,
+               StringConvertible auto &&...args) const -> void {
     if (isVerbose) {
       log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }
   }
 
-  auto noVerbose(Level level, std::string_view fmt, auto &&...args) const
-      -> void {
+  auto noVerbose(Level level, std::string_view fmt,
+                 StringConvertible auto &&...args) const -> void {
     if (!isVerbose) {
       log(level, format(fmt, std::forward<decltype(args)>(args)...));
     }
