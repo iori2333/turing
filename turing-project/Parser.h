@@ -33,6 +33,7 @@ constexpr auto InvalidTapeSymbols = " ,;{}*"sv;
 
 } // namespace constants
 
+using machine::Move;
 using machine::Transition;
 using machine::TuringState;
 using simulator::Simulator;
@@ -282,18 +283,18 @@ public:
       return TuringError::ParserInvalidTransition;
     }
 
-    auto moves = std::vector<machine::Move>();
+    auto moves = std::vector<Move>();
     moves.reserve(turingState.tapeCount);
     for (auto ch : direction) {
       switch (ch) {
       case 'l':
-        moves.emplace_back(machine::Move::Left);
+        moves.emplace_back(Move::Left);
         break;
       case 'r':
-        moves.emplace_back(machine::Move::Right);
+        moves.emplace_back(Move::Right);
         break;
       case '*':
-        moves.emplace_back(machine::Move::Stay);
+        moves.emplace_back(Move::Stay);
         break;
       default:
         return TuringError::ParserInvalidTransition;
@@ -302,7 +303,13 @@ public:
     auto nextState = symbols[4];
 
     auto transition = Transition(state, symbol, nextState, nextSymbol, moves);
-    turingState.transitions.insert(std::move(transition));
+    if (transition.isStarTransition()) {
+      for (auto &&convertedTransition : transition.convertTransitions()) {
+        turingState.transitions.insert(std::move(convertedTransition));
+      }
+    } else {
+      turingState.transitions.insert(std::move(transition));
+    }
     return TuringError::Ok;
   }
 };
