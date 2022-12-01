@@ -1,23 +1,29 @@
 #pragma once
 #include <map>
-#include <optional>
+#include <queue>
+#include <set>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace turing::machine {
 
+using Size = std::size_t;
 using Position = int;
+
 enum class Move : Position { Left = -1, Right = 1, Stay = 0 };
+using Moves = std::vector<Move>;
+using MovesRef = const std::vector<Move> &;
 
 using State = std::string;
 using StateRef = std::string_view;
-using StatesSet = std::unordered_set<State>;
+using StatesSet = std::set<State>;
+
 using Symbol = char;
-using SymbolSet = std::unordered_set<Symbol>;
+using SymbolSet = std::set<Symbol>;
 using Symbols = std::basic_string<Symbol>;
 using SymbolsRef = std::basic_string_view<Symbol>;
-using Size = std::size_t;
+
+struct TuringState;
 
 struct Transition {
 private:
@@ -26,16 +32,16 @@ private:
 
   State next;
   Symbols output;
-  std::vector<Move> moves;
+  Moves moves;
 
 public:
   Transition(StateRef curr, SymbolsRef input, StateRef next, SymbolsRef output,
-             std::vector<Move> moves)
+             Moves moves)
       : curr(curr), input(input), next(next), output(output),
         moves(std::move(moves)) {}
 
   using StateInput = std::pair<State, Symbols>;
-  using StateOutput = std::tuple<State, Symbols, std::vector<Move>>;
+  using StateOutput = std::tuple<State, Symbols, Moves>;
 
   auto states() && -> std::pair<StateInput, StateOutput> {
     return {{std::move(curr), std::move(input)},
@@ -51,16 +57,23 @@ public:
            output.find('*') != std::string::npos;
   }
 
-  auto convertTransitions() -> std::vector<Transition> { return {}; }
+  auto convertTransitions(const TuringState &state) const
+      -> std::set<Transition>;
+
+  auto operator<=>(const Transition &other) const {
+    return std::tie(curr, input, next, output, moves) <=>
+           std::tie(other.curr, other.input, other.next, other.output,
+                    other.moves);
+  }
 };
 
 struct Transitions {
 public:
   using TransitionMap =
       std::map<Transition::StateInput, Transition::StateOutput>;
-  using iterator = typename TransitionMap::iterator;
-  using const_iterator = typename TransitionMap::const_iterator;
-  using value_type = typename TransitionMap::value_type;
+  using iterator = TransitionMap::iterator;
+  using const_iterator = TransitionMap::const_iterator;
+  using value_type = TransitionMap::value_type;
 
 private:
   TransitionMap transitions;
@@ -78,10 +91,9 @@ public:
     transitions.erase(stateInput);
   }
 
-  auto find(const Transition::StateInput &stateInput) const
-      -> std::optional<Transition::StateOutput> {
-    auto it = transitions.find(stateInput);
-    return it == transitions.end() ? std::nullopt : std::optional(it->second);
+  auto get(const Transition::StateInput &stateInput) const
+      -> Transition::StateOutput {
+    return transitions.find(stateInput)->second;
   }
 
   auto contains(const Transition::StateInput &stateInput) const -> bool {
@@ -91,11 +103,9 @@ public:
   auto size() const -> Size { return transitions.size(); }
 
   auto begin() -> iterator { return transitions.begin(); }
-
   auto begin() const -> const_iterator { return transitions.begin(); }
 
   auto end() -> iterator { return transitions.end(); }
-
   auto end() const -> const_iterator { return transitions.end(); }
 
   auto toString() const -> std::string {
@@ -138,22 +148,72 @@ struct TuringState {
   Transitions transitions;
 
   static constexpr auto FormatTemplate = "TuringState {\n"
-                                         "  symbols: {}\n"
-                                         "  states: {}\n"
-                                         "  tapeSymbols: {}\n"
+                                         "  symbols: [{}]\n"
+                                         "  states: [{}]\n"
+                                         "  tapeSymbols: [{}]\n"
                                          "  initialState: {}\n"
                                          "  blankSymbol: {}\n"
-                                         "  finalStates: {}\n"
+                                         "  finalStates: [{}]\n"
                                          "  tapeCount: {}\n"
-                                         "  transitions:\n{}\n"
+                                         "  transitions: [\n{}\n"
+                                         "  ]\n"
                                          "  totalTransitions: {}\n"
                                          "}";
 
   auto toString() -> std::string {
-    return utils::format(FormatTemplate, utils::join(symbols),
-                         utils::join(states), utils::join(tapeSymbols),
-                         initialState, blankSymbol, utils::join(finalStates),
-                         tapeCount, transitions, transitions.size());
+    return utils::format(FormatTemplate,           //
+                         utils::join(symbols),     //
+                         utils::join(states),      //
+                         utils::join(tapeSymbols), //
+                         initialState,             //
+                         blankSymbol,              //
+                         utils::join(finalStates), //
+                         tapeCount,                //
+                         transitions,              //
+                         transitions.size());
   }
 };
+
+inline auto Transition::convertTransitions(const TuringState &state) const
+    -> std::set<Transition> {
+  auto queue = std::queue<Transition>();
+  auto result = std::set<Transition>();
+  queue.push(*this);
+  while (!queue.empty()) {
+    auto front = queue.front();
+    queue.pop();
+    bool flag = true;
+    for (auto i = 0; i < front.input.size(); i++) {
+      auto s1 = front.input[i];
+      auto s2 = front.output[i];
+      if (s1 == '*' && s2 == '*') {
+        flag = false;
+        auto nt = front;
+        for (auto s : state.symbols) {
+          nt.input[i] = s;
+          nt.output[i] = s;
+          queue.push(nt);
+        }
+      } else if (s1 == '*') {
+        flag = false;
+        auto nt = front;
+        for (auto s : state.symbols) {
+          nt.input[i] = s;
+          queue.push(nt);
+        }
+      } else if (s2 == '*') {
+        flag = false;
+        auto nt = front;
+        for (auto s : state.symbols) {
+          nt.output[i] = s;
+          queue.push(nt);
+        }
+      }
+    }
+    if (flag) {
+      result.insert(front);
+    }
+  }
+  return result;
+}
 } // namespace turing::machine

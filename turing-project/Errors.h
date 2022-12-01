@@ -11,12 +11,13 @@ enum struct TuringError : int {
   ParserInvalidSymbols,
   ParserInvalidTapeSymbols,
   ParserInvalidInitialState,
-  ParserDuplicateDefinition,
-  SimulatorIllegalInput,
   ParserInvalidBlankSymbol,
   ParserInvalidFinalStates,
   ParserInvalidTapeCount,
   ParserInvalidTransition,
+  ParserDuplicateDefinition,
+  SimulatorIllegalInput,
+  SimulatorNotAccepted,
   UnknownError
 };
 
@@ -32,12 +33,22 @@ struct ErrorCategory final : public std::error_category {
     switch (static_cast<TuringError>(ev)) {
     case TuringError::Ok:
       return "Ok";
+    case TuringError::ParserInvalidSymbols:
+    case TuringError::ParserInvalidTapeSymbols:
+    case TuringError::ParserInvalidInitialState:
+    case TuringError::ParserInvalidBlankSymbol:
+    case TuringError::ParserInvalidFinalStates:
+    case TuringError::ParserInvalidTapeCount:
+    case TuringError::ParserInvalidTransition:
+    case TuringError::ParserDuplicateDefinition:
     case TuringError::ParserInvalidStates:
-      return "Invalid states definition";
+      return "syntax error";
     case TuringError::SimulatorIllegalInput:
-      return "Illegal input";
-    default:
-      return "Unknown error";
+      return "illegal input";
+    case TuringError::SimulatorNotAccepted:
+      return "not accepted";
+    case TuringError::UnknownError:
+      return "unknown error";
     }
   }
   auto name() const noexcept -> const char * override { return "turing"; }

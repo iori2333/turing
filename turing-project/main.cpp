@@ -10,12 +10,12 @@ auto main(int argc, char **argv) -> int {
   const auto &logger = Logger::instance();
 
   auto simulator = parser.parse().onError([&logger](const Error &error) {
-    logger.info(error.message());
+    logger.error(error.message());
     std::exit(error.value());
   });
 
   simulator.run().onError([&logger](const Error &error) {
-    logger.noVerbose(Logger::Level::Error, error.message());
+    // logger.error(error.message()); // not required
     std::exit(error.value());
   });
 

@@ -15,8 +15,7 @@ namespace constants {
 
 using namespace std::literals::string_view_literals;
 
-constexpr auto Usage =
-    "usage: turing [-v|--isVerbose] [-h|--help] <tm> <input>";
+constexpr auto Usage = "usage: turing [-v|--verbose] [-h|--help] <tm> <input>";
 constexpr auto EmptyString = ""sv;
 
 constexpr auto StatesFlag = "#Q";
@@ -34,6 +33,7 @@ constexpr auto InvalidTapeSymbols = " ,;{}*"sv;
 } // namespace constants
 
 using machine::Move;
+using machine::Moves;
 using machine::Transition;
 using machine::TuringState;
 using simulator::Simulator;
@@ -79,7 +79,7 @@ public:
     auto input = constants::EmptyString;
     auto doHelp = false;
     for (auto arg : args) {
-      if (arg == "-v" || arg == "--isVerbose") {
+      if (arg == "-v" || arg == "--verbose") {
         logger.setVerbose(true);
       } else if (arg == "-h" || arg == "--help") {
         doHelp = true;
@@ -283,7 +283,7 @@ public:
       return TuringError::ParserInvalidTransition;
     }
 
-    auto moves = std::vector<Move>();
+    auto moves = Moves{};
     moves.reserve(turingState.tapeCount);
     for (auto ch : direction) {
       switch (ch) {
@@ -304,7 +304,8 @@ public:
 
     auto transition = Transition(state, symbol, nextState, nextSymbol, moves);
     if (transition.isStarTransition()) {
-      for (auto &&convertedTransition : transition.convertTransitions()) {
+      for (auto &&convertedTransition :
+           transition.convertTransitions(turingState)) {
         turingState.transitions.insert(std::move(convertedTransition));
       }
     } else {
