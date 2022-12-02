@@ -80,7 +80,7 @@ public:
 
   auto run() -> Result<> {
     logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
-                   step, currentState, tapes.toString());
+                   step, currentState, tapes);
     status = Status::Running;
     while (status == Status::Running) {
       status = stepNext();
@@ -107,7 +107,7 @@ private:
     currentState = nextState;
     step++;
     logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
-                   step, currentState, tapes.toString());
+                   step, currentState, tapes);
     return Status::Running;
   }
 };
