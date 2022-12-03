@@ -60,6 +60,8 @@ public:
   auto convertTransitions(const TuringState &state) const
       -> std::set<Transition>;
 
+  auto isValid(const TuringState &state) const -> bool;
+
   auto operator<(const Transition &other) const {
     return std::tie(curr, input, next, output, moves) <
            std::tie(other.curr, other.input, other.next, other.output,
@@ -220,4 +222,23 @@ inline auto Transition::convertTransitions(const TuringState &state) const
   }
   return result;
 }
+
+auto Transition::isValid(const TuringState &state) const -> bool {
+  if (!state.states.contains(curr) || !state.states.contains(next)) {
+    return false;
+  }
+
+  for (auto i = 0; i < input.size(); i++) {
+    if (input[i] != '*' && !state.tapeSymbols.contains(input[i])) {
+      return false;
+    }
+
+    if (output[i] != '*' && !state.tapeSymbols.contains(output[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 } // namespace turing::machine

@@ -307,6 +307,10 @@ public:
     auto nextState = symbols[4];
 
     auto transition = Transition(state, symbol, nextState, nextSymbol, moves);
+    if (!transition.isValid(turingState)) {
+      return TuringError::ParserInvalidTransition;
+    }
+
     if (transition.isStarTransition()) {
       for (auto &&convertedTransition :
            transition.convertTransitions(turingState)) {
