@@ -27,8 +27,8 @@ constexpr auto ValidInputFormat =
     "==================== RUN ====================";
 
 constexpr auto RunInformationFormat =
-    "Step   : {}\n"
-    "State  : {}\n"
+    "Step  {}: {}\n"
+    "State {}: {}\n"
     "{}\n"
     "---------------------------------------------";
 
@@ -94,6 +94,7 @@ public:
 
 private:
   auto stepNext() -> Status {
+    static auto _indent = getIndent(turingState.tapeCount);
     if (turingState.finalStates.contains(currentState)) {
       return Status::Accepted;
     }
@@ -107,8 +108,17 @@ private:
     currentState = nextState;
     step++;
     logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
-                   step, currentState, tapes);
+                   _indent, step, _indent, currentState, tapes);
     return Status::Running;
+  }
+
+  static auto getIndent(int tapes) -> std::string {
+    auto n = 0;
+    while (tapes > 0) {
+      tapes /= 10;
+      n++;
+    }
+    return std::string(n, ' ');
   }
 };
 } // namespace turing::simulator
