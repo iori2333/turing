@@ -79,8 +79,9 @@ public:
   }
 
   auto run() -> Result<> {
+    auto _indent = getIndent();
     logger.verbose(Logger::Level::Info, constants::RunInformationFormat, //
-                   step, currentState, tapes);
+                   _indent, step, _indent, currentState, tapes);
     status = Status::Running;
     while (status == Status::Running) {
       status = stepNext();
@@ -94,7 +95,7 @@ public:
 
 private:
   auto stepNext() -> Status {
-    static auto _indent = getIndent(turingState.tapeCount);
+    auto _indent = getIndent();
     if (turingState.finalStates.contains(currentState)) {
       return Status::Accepted;
     }
@@ -112,13 +113,15 @@ private:
     return Status::Running;
   }
 
-  static auto getIndent(int tapes) -> std::string {
+  auto getIndent() -> std::string_view {
     auto n = 0;
-    while (tapes > 0) {
-      tapes /= 10;
+    auto tapeCount = turingState.tapeCount;
+    while (tapeCount > 0) {
+      tapeCount /= 10;
       n++;
     }
-    return std::string(n, ' ');
+    static auto indent = std::string(n, ' ');
+    return indent;
   }
 };
 } // namespace turing::simulator
