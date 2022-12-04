@@ -62,22 +62,26 @@ public:
     auto stopRealPos = static_cast<int>(tape.find_last_not_of(blank));
 
     if (startRealPos == -1) {
-      auto line = std::vector<std::string>{
+      auto line = std::array<std::string, 3>{
           utils::toString(std::abs(head())),
           utils::toString(blank),
           "^",
       };
       utils::alignRight(line);
 
-      return utils::format(FormatTemplate, //
-                           index, line[0], //
-                           index, line[1], //
-                           index, line[2]);
+      return utils::format(FormatTemplate,            //
+                           index, std::move(line[0]), //
+                           index, std::move(line[1]), //
+                           index, std::move(line[2]));
     }
 
     auto indexString = std::vector<std::string>{};
     auto tapeString = std::vector<std::string>{};
     auto headString = std::vector<std::string>{};
+
+    indexString.reserve(stopRealPos - startRealPos + 1);
+    tapeString.reserve(stopRealPos - startRealPos + 1);
+    headString.reserve(stopRealPos - startRealPos + 1);
 
     startRealPos = std::min(startRealPos, offset(head()));
     stopRealPos = std::max(stopRealPos, offset(head()));
@@ -85,7 +89,7 @@ public:
     for (auto i = startRealPos; i <= stopRealPos; i++) {
       auto logicalPos = i + start();
       auto symbol = at(logicalPos);
-      auto line = std::vector<std::string>{
+      auto line = std::array<std::string, 3>{
           utils::toString(std::abs(logicalPos)),
           utils::toString(symbol),
           logicalPos == head() ? "^" : " ",

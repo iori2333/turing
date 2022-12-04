@@ -113,7 +113,7 @@ private:
     return Status::Running;
   }
 
-  auto getIndent() -> std::string_view {
+  auto getIndent() const -> std::string_view {
     auto n = 0;
     auto tapeCount = turingState.tapeCount;
     while (tapeCount > 0) {

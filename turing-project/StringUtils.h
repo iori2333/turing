@@ -27,13 +27,12 @@ concept ToStringConvertible = requires(T t) {
 };
 
 template <typename T>
-concept Printable = requires(std::stringstream ss, T t) {
-  { ss << t } -> std::convertible_to<std::ostream&>;
+concept Printable = requires(std::stringstream &ss, T t) {
+  { ss << t } -> std::convertible_to<std::ostream &>;
 };
 
 template <typename T>
-concept IsString = std::is_same_v<std::decay_t<T>, std::string> ||
-    std::is_same_v<std::decay_t<T>, const char*>;
+concept IsString = std::is_same_v<std::decay_t<T>, std::string>;
 
 template <typename T>
 concept StringConstructable = std::is_constructible_v<std::string, T>;
@@ -47,13 +46,20 @@ concept StringConvertible = StdToStringConvertible<T> ||
     IsString<T> || StringConstructable<T> || IsCharacter<T>;
 
 template <typename V>
-concept Iterable = requires(V v) {
+concept Iterable = requires(V &v) {
   { v.begin() } -> std::convertible_to<typename V::iterator>;
   { v.end() } -> std::convertible_to<typename V::iterator>;
+};
+
+template<typename V>
+concept ConstIterable = requires(const V &v) {
+  { v.begin() } -> std::convertible_to<typename V::const_iterator>;
+  { v.end() } -> std::convertible_to<typename V::const_iterator>;
 };
 // clang-format on
 } // namespace concepts
 
+using concepts::ConstIterable;
 using concepts::Iterable;
 using concepts::StringConvertible;
 
@@ -114,9 +120,9 @@ inline auto replace(std::string_view ins, std::string_view from,
   return ret;
 }
 
-template <Iterable V>
+template <ConstIterable V>
   requires StringConvertible<typename V::value_type>
-auto join(const V &vec, std::string_view delim) -> std::string {
+auto join(const V &vec, std::string_view delim = " ") -> std::string {
   auto ret = std::string{};
 
   for (auto it = vec.begin(); it != vec.end();) {
@@ -128,9 +134,9 @@ auto join(const V &vec, std::string_view delim) -> std::string {
   return ret;
 }
 
-template <Iterable V>
+template <ConstIterable V>
   requires StringConvertible<typename V::value_type>
-inline auto join(const V &vec, char delim = ' ') -> std::string {
+inline auto join(const V &vec, char delim) -> std::string {
   return join(vec, std::string_view(&delim, 1));
 }
 
@@ -171,9 +177,11 @@ inline auto trim(std::string_view s, char symbol = ' ') -> std::string_view {
   return s.substr(start, end - start + 1);
 }
 
-inline auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
+template <Iterable V>
+  requires concepts::IsString<typename V::value_type>
+inline auto alignRight(V &strings, char symbol = ' ',
                        std::size_t size = std::string::npos)
-    -> std::vector<std::string> & {
+    -> decltype(strings) {
   if (size == std::string::npos) {
     size = std::max_element(strings.begin(), strings.end(),
                             [](const auto &i1, const auto &i2) {
@@ -183,7 +191,9 @@ inline auto alignRight(std::vector<std::string> &strings, char symbol = ' ',
   }
   for (auto &s : strings) {
     if (s.size() < size) {
-      s += std::string(size - s.size(), symbol);
+      for (auto i = 0; i < size - s.size(); ++i) {
+        s.push_back(symbol);
+      }
     }
   }
   return strings;
