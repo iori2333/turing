@@ -1,4 +1,5 @@
 #pragma once
+#include "StringUtils.h"
 #include <fstream>
 #include <regex>
 
@@ -53,7 +54,7 @@ private:
     if (commentPos != std::string_view::npos) {
       return line.substr(0, commentPos);
     }
-    return utils::trim(line);
+    return line;
   }
 
 public:
@@ -108,6 +109,7 @@ public:
       auto rLine = std::string{};
       std::getline(fs, rLine, '\n');
       auto line = trimComments(rLine);
+      line = utils::trim(line);
       if (line.empty()) {
         continue;
       }
