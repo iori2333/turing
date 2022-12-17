@@ -184,7 +184,7 @@ inline auto Transition::convertTransitions(const TuringState &state) const
   while (!queue.empty()) {
     auto front = queue.front();
     queue.pop();
-    bool flag = true;
+    auto flag = true;
     for (auto i = 0; i < front.input.size(); i++) {
       auto s1 = front.input[i];
       auto s2 = front.output[i];
@@ -223,7 +223,7 @@ inline auto Transition::convertTransitions(const TuringState &state) const
   return result;
 }
 
-auto Transition::isValid(const TuringState &state) const -> bool {
+inline auto Transition::isValid(const TuringState &state) const -> bool {
   if (!state.states.contains(curr) || !state.states.contains(next)) {
     return false;
   }
