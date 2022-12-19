@@ -13,18 +13,24 @@ private:
   Position _head;  // Write _head
   Symbol blank;
 
-  static constexpr auto FormatTemplate = "Index{} : {}\n"
-                                         "Tape{}  : {}\n"
-                                         "Head{}  : {}";
+  static constexpr auto FormatTemplate = "Index{}{} : {}\n"
+                                         "Tape{}{}  : {}\n"
+                                         "Head{}{}  : {}";
+
+  std::string indent;
 
 public:
   Tape(Size index, const TuringState &state)
       : index(index), blank(state.blankSymbol), _start(0), _head(0),
-        tape(1, state.blankSymbol) {}
+        tape(1, state.blankSymbol) {
+    indent = std::string(getLength(state.tapeCount) - getLength(index), ' ');
+  }
 
   Tape(Size index, const TuringState &state, SymbolsRef tape)
       : index(index), blank(state.blankSymbol), _start(0), _head(0),
-        tape(tape) {}
+        tape(tape) {
+    indent = std::string(getLength(state.tapeCount) - getLength(index), ' ');
+  }
 
   auto offset(Position pos) const -> Position { return pos - start(); }
   auto head() const -> Position { return _head; }
@@ -71,10 +77,10 @@ public:
       };
       utils::alignRight(line);
 
-      return utils::format(FormatTemplate,            //
-                           index, std::move(line[0]), //
-                           index, std::move(line[1]), //
-                           index, std::move(line[2]));
+      return utils::format(FormatTemplate,                    //
+                           index, indent, std::move(line[0]), //
+                           index, indent, std::move(line[1]), //
+                           index, indent, std::move(line[2]));
     }
 
     auto indexString = std::vector<std::string>{};
@@ -119,6 +125,19 @@ public:
     }
 
     return tape.substr(startRealPos, stopRealPos - startRealPos + 1);
+  }
+
+private:
+  static auto getLength(int n) -> int {
+    if (n == 0) {
+      return 1;
+    }
+    auto length = 0;
+    while (n != 0) {
+      n /= 10;
+      length++;
+    }
+    return length;
   }
 };
 
