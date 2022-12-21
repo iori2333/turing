@@ -1,5 +1,4 @@
 #pragma once
-#include "StringUtils.h"
 #include <fstream>
 #include <regex>
 
@@ -59,7 +58,7 @@ private:
 
 public:
   explicit Parser(std::string_view filename, std::string_view input)
-      : input(input), fs(filename.data()), logger(Logger::instance()) {
+      : fs(filename.data()), logger(Logger::instance()), input(input) {
     if (!fs.is_open()) {
       logger.error("failed to open file: {}", filename);
       std::exit(1);
@@ -142,7 +141,7 @@ public:
 
   auto parseStates(std::string_view line) -> Error {
     static auto statesReg = std::regex{R"(#Q\s*=\s*\{([a-zA-Z0-9_, ]+)\})"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, statesReg)) {
       return TuringError::ParserInvalidStates;
     }
@@ -159,7 +158,7 @@ public:
 
   auto parseSymbols(std::string_view line) -> Error {
     static auto symbolsReg = std::regex{R"(#S\s*=\s*\{(.*)\})"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, symbolsReg)) {
       return TuringError::ParserInvalidSymbols;
     }
@@ -184,7 +183,7 @@ public:
 
   auto parseTapeSymbols(std::string_view line) -> Error {
     static auto tapeSymbolsReg = std::regex{R"(#G\s*=\s*\{(.*)\})"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, tapeSymbolsReg)) {
       return TuringError::ParserInvalidTapeSymbols;
     }
@@ -210,7 +209,7 @@ public:
     if (!turingState.initialState.empty()) {
       return TuringError::ParserDuplicateDefinition;
     }
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, initialStateReg)) {
       return TuringError::ParserInvalidInitialState;
     }
@@ -220,7 +219,8 @@ public:
 
   auto parseBlankSymbol(std::string_view line) -> Error {
     static auto blankSymbolReg = std::regex{R"(#B\s*=\s*([a-zA-Z0-9_]+))"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
+
     if (!std::regex_match(line.begin(), line.end(), match, blankSymbolReg)) {
       return TuringError::ParserInvalidBlankSymbol;
     }
@@ -239,7 +239,7 @@ public:
   auto parseFinalStates(std::string_view line) -> Error {
     static auto finalStatesReg =
         std::regex{R"(#F\s*=\s*\{([a-zA-Z0-9_, ]*)\})"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, finalStatesReg)) {
       return TuringError::ParserInvalidFinalStates;
     }
@@ -259,7 +259,7 @@ public:
 
   auto parseTapeCount(std::string_view line) -> Error {
     static auto tapeCountReg = std::regex{R"(#N\s*=\s*(\d+))"};
-    auto match = std::cmatch{};
+    auto match = utils::svmatch{};
     if (!std::regex_match(line.begin(), line.end(), match, tapeCountReg)) {
       return TuringError::ParserInvalidTapeCount;
     }

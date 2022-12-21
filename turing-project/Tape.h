@@ -21,14 +21,14 @@ private:
 
 public:
   Tape(Size index, const TuringState &state)
-      : index(index), blank(state.blankSymbol), _start(0), _head(0),
-        tape(1, state.blankSymbol) {
+      : index(index), tape(1, state.blankSymbol), _start(0), _head(0),
+        blank(state.blankSymbol) {
     indent = std::string(getLength(state.tapeCount) - getLength(index), ' ');
   }
 
   Tape(Size index, const TuringState &state, SymbolsRef tape)
-      : index(index), blank(state.blankSymbol), _start(0), _head(0),
-        tape(tape) {
+      : index(index), tape(tape), _start(0), _head(0),
+        blank(state.blankSymbol) {
     indent = std::string(getLength(state.tapeCount) - getLength(index), ' ');
   }
 
@@ -108,10 +108,10 @@ public:
       headString.emplace_back(std::move(line[2]));
     }
 
-    return utils::format(FormatTemplate,                  //
-                         index, utils::join(indexString), //
-                         index, utils::join(tapeString),  //
-                         index, utils::join(headString));
+    return utils::format(FormatTemplate,                          //
+                         index, indent, utils::join(indexString), //
+                         index, indent, utils::join(tapeString),  //
+                         index, indent, utils::join(headString));
   }
 
   auto setIndex(Size newIndex) -> void { index = newIndex; }

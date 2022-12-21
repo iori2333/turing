@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <regex>
 #include <sstream>
 #include <tuple>
 #include <vector>
@@ -62,6 +63,8 @@ concept ConstIterable = requires(const V &v) {
 using concepts::ConstIterable;
 using concepts::Iterable;
 using concepts::StringConvertible;
+
+using svmatch = std::match_results<std::string_view::const_iterator>;
 
 template <StringConvertible T> inline auto toString(T &&arg) -> std::string {
   if constexpr (concepts::IsString<T>) {
